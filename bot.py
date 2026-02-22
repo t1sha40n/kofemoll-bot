@@ -32,17 +32,24 @@ def escape_markdown(text):
         text = text.replace(char, f'\\{char}')
     return text
 
-# Создаем Flask приложение (для health check)
+# Создаем Flask приложение
 flask_app = Flask(__name__)
 
 @flask_app.route('/health')
 def health():
-    """Render пингует этот адрес каждые 5 минут"""
+    """Render пингует этот адрес"""
     return 'OK', 200
 
 @flask_app.route('/')
 def index():
     return 'Bot is running!'
+
+@flask_app.route('/webhook', methods=['POST'])
+def webhook():
+    """Telegram отправляет обновления сюда"""
+    update = Update.de_json(request.get_json(force=True), bot_app.bot)
+    asyncio.run_coroutine_threadsafe(bot_app.process_update(update), bot_app.loop)
+    return 'OK', 200
 
 # Создаем Telegram бота
 bot_app = Application.builder().token(TOKEN).build()
@@ -172,6 +179,6 @@ if __name__ == "__main__":
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
     
-    # Запускаем Flask (для health check)
+    # Запускаем Flask
     port = int(os.environ.get('PORT', 10000))
     flask_app.run(host='0.0.0.0', port=port)
